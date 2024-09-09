@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision.utils import save_image
 from models import Generator, Discriminator
-from utils import get_data_loader, plot
+from utils import get_data_loader, plot, generate_img
 import timeit
 
 def train(generator, discriminator, params=None):
@@ -12,7 +12,8 @@ def train(generator, discriminator, params=None):
         params = {
             "latent_dim": 100,
             "batch_size": 64,
-            "learning_rate": 0.0002,
+            "gen_learning_rate": 0.00005,
+            "dis_learning_rate": 0.00005,
             "num_epochs": 100
         }
     
@@ -20,8 +21,8 @@ def train(generator, discriminator, params=None):
     dataloader = get_data_loader(params["batch_size"])
 
     # optimizers
-    gen_optimizer = optim.Adam(generator.parameters(), lr=params["learning_rate"])
-    dis_optimizer = optim.Adam(discriminator.parameters(), lr=params["learning_rate"])
+    gen_optimizer = optim.Adam(generator.parameters(), lr=params["gen_learning_rate"])
+    dis_optimizer = optim.Adam(discriminator.parameters(), lr=params["dis_learning_rate"])
 
     # Loss function
     adversarial_loss = nn.BCELoss()
@@ -33,6 +34,8 @@ def train(generator, discriminator, params=None):
     times = []
     
     # Training Loop
+    generator.train()
+    discriminator.train()
     for epoch in range(1, params["num_epochs"] + 1):
         start_time = timeit.default_timer()
         for i, (imgs, _) in enumerate(dataloader):
@@ -87,27 +90,25 @@ def train(generator, discriminator, params=None):
     total_time = sum(times)
     print(f"Total time taken: {round(total_time / 3600, 2)} hours")
 
-def generate_img(generator, num_images=1):
-    z = torch.randn(num_images, 100)
-    gen_imgs = generator(z)
-    save_image(gen_imgs.data[:25], f'outputs/generated.png', nrow=8, normalize=True)
-
 def main():
     params = {
         "latent_dim": 100,
         "batch_size": 64,
-        "learning_rate": 0.0002,
-        "num_epochs": 50
+        "gen_learning_rate": 0.00005,
+        "dis_learning_rate": 0.00005,
+        "num_epochs": 60
     }
     # Model and Optimizer
     generator = Generator(params["latent_dim"])
+    generator.load_state_dict(torch.load('models/generators/generator_epoch_60.pth', weights_only=True))
     discriminator = Discriminator()
+    discriminator.load_state_dict(torch.load('models/discriminators/discriminator_epoch_60.pth', weights_only=True))
 
     # Train
-    train(generator, discriminator, params)
+    # train(generator, discriminator, params)
 
     # Generate Image
-    generate_img(generator)
+    generate_img(generator, discriminator, 100, num_row=10)
 
 if __name__ == "__main__":
     main()
